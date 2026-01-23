@@ -10,6 +10,7 @@
 #include "iree/compiler/Dialect/TensorExt/IR/TensorExtDialect.h"
 #include "iree/compiler/Dialect/Util/IR/UtilOps.h"
 #include "iree/compiler/Dialect/Util/Transforms/Passes.h"
+#include "iree/compiler/GlobalOptimization/Passes.h"
 #include "iree/compiler/Utils/PassUtils.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/Passes.h"
@@ -171,7 +172,7 @@ static void addDispatchRegionCreationPreprocessingPasses(
       .addPass(IREE::Flow::createCanonicalizePass)
       .addPass(mlir::createCSEPass)
 
-      //     b. Split reduction operations into parallel and reduction,
+      //     b. Split reduction operations into parallel and reduction.
       //        - Legacy pass to be deprecated
       .addPass(DispatchCreation::createSplitReductionPass)
       //        - Split reduction using partial reduction tiling.
@@ -184,7 +185,10 @@ static void addDispatchRegionCreationPreprocessingPasses(
         return DispatchCreation::createFormSplitReductionDispatchesPass(
             options);
       })
-      //     c. Transpose generic ops to
+      //     c. Simplify operations introduced by split reduction.
+      .addPass(GlobalOptimization::createGeneralizeLinalgNamedOpsPass)
+      .addPass(DispatchCreation::createFoldUnitExtentDimsForFuncPass)
+      //     d. Transpose generic ops to
       //        - help with dispatch region formation.
       //        - move reduction iterators to be innermost.
       .addPass(DispatchCreation::createTransposeGenericOpsPass)
